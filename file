@@ -1,0 +1,107 @@
+✅ Common Preparation for Both Scenarios
+Step 1: Prepare Folder Structure in WSL
+
+mkdir -p ~/monitoring_setup && cd ~/monitoring_setup
+touch inventory.ini prometheus_grafana.yml node_exporter.yml prometheus.yml
+
+Step 2: Setup Inventory File
+📌 If target is EC2:
+ini
+
+[linux_machine]
+<EC2_PUBLIC_IP> ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/ans.pem
+
+📌 If target is local Linux VM (with SSH enabled):
+[linux_machine]
+ini
+
+<LOCAL_LINUX_IP> ansible_user=your_username ansible_ssh_private_key_file=~/.ssh/id_rsa
+
+
+✅ SCENARIO 1: All Components on a Single Linux Machine
+➤ Run This Playbook: prometheus_grafana.yml
+
+- name: Install Prometheus, Grafana, Node Exporter on same machine
+  hosts: linux_machine
+  become: yes
+  tasks:
+    - name: Install dependencies
+      apt:
+        name: [wget, curl, gnupg2]
+        state: present
+        update_cache: yes
+
+    - name: Download Prometheus
+      get_url:
+        url: https://github.com/prometheus/prometheus/releases/download/v2.48.0/prometheus-2.48.0.linux-amd64.tar.gz
+        dest: /tmp/prometheus.tar.gz
+
+    - name: Extract Prometheus
+      unarchive:
+        src: /tmp/prometheus.tar.gz
+        dest: /opt/
+        remote_src: yes
+
+    - name: Copy Prometheus config
+      copy:
+        src: ./prometheus.yml
+        dest: /opt/prometheus-2.48.0.linux-amd64/prometheus.yml
+
+    - name: Start Prometheus
+      shell: nohup /opt/prometheus-2.48.0.linux-amd64/prometheus --config.file=/opt/prometheus-2.48.0.linux-amd64/prometheus.yml --web.listen-address=":9090" &
+
+    - name: Install Grafana
+      shell: |
+        echo "deb https://packages.grafana.com/oss/deb stable main" | tee /etc/apt/sources.list.d/grafana.list
+        curl https://packages.grafana.com/gpg.key | apt-key add -
+        apt update && apt install grafana -y
+
+    - name: Start Grafana
+      systemd:
+        name: grafana-server
+        enabled: yes
+        state: started
+
+    - name: Install Node Exporter
+      shell: |
+        cd /tmp
+        wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+        tar xvf node_exporter-1.7.0.linux-amd64.tar.gz
+        sudo mv node_exporter-1.7.0.linux-amd64/node_exporter /usr/local/bin/
+
+    - name: Setup Node Exporter Service
+      copy:
+        dest: /etc/systemd/system/node_exporter.service
+        content: |
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/local/bin/node_exporter
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start Node Exporter
+      systemd:
+        name: node_exporter
+        enabled: yes
+        state: started
+
+---------------------------------------------------------------------------------------------------------------
+➤ prometheus.yml (monitor localhost:9100)
+
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+
+-----------------------------------------------------------------------------------------------------------------
+
+
+
