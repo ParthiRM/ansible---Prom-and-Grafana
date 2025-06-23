@@ -1,0 +1,40 @@
+🧹 1. Uninstall Ansible
+If you installed it using apt (the usual way):
+
+
+sudo apt remove --purge -y ansible
+sudo apt autoremove -y
+This will uninstall Ansible and clean up unused dependencies.
+
+🧹 2. Uninstall Prometheus
+📦 If Installed via APT (system-wide):
+
+sudo systemctl stop prometheus
+sudo apt remove --purge -y prometheus
+sudo rm -rf /etc/prometheus /var/lib/prometheus
+📁 If Installed Manually (from .tar.gz file)
+You likely have it extracted somewhere like:
+
+~/setup1/moniroting_setup/prometheus-2.52.0.linux-amd64
+Delete the folder:
+
+
+rm -rf ~/setup1/moniroting_setup/prometheus-2.52.0.linux-amd64
+Also, if you started Prometheus manually using nohup, stop it:
+
+
+pkill -f prometheus
+
+
+🧹 3. Remove Node Exporter (if installed manually)
+
+pkill -f node_exporter
+sudo rm /usr/local/bin/node_exporter
+If installed by APT:
+
+
+sudo apt remove --purge -y prometheus-node-exporter
+🧹 4. Remove Any Leftover Folders
+Optional cleanup:
+
+rm -rf ~/setup1 ~/monitoring_setup ~/monitoring-setup
